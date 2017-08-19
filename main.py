@@ -1,8 +1,9 @@
 import pandas as pd
 
+from scipy.stats import hypergeom
 from collections import OrderedDict
 
-def term_frequency_matrix(dframe, stop_words=None):
+def term_frequency_matrix(dframe, label_column, text_column, stop_words=None):
 	"""
 	Parameters
 	__________
@@ -27,17 +28,17 @@ def term_frequency_matrix(dframe, stop_words=None):
 		stop_words = []
 
 	term_frequency = OrderedDict()
-	for category in dframe.columns:
-		
+	for category, subpopulation in dframe.groupby(label_column):
+
 		term_frequency[category] = OrderedDict()
-		for element in dframe[category]:
-			
+		for element in subpopulation[text_column]:
 			if type(element) is str:
 				tokenized = element.split(' ')
 			else:
 				tokenized = element
 
 			for word in tokenized:
+				word = word.strip()
 				if word in stop_words:
 					continue
 				if word in term_frequency[category]:
@@ -45,17 +46,36 @@ def term_frequency_matrix(dframe, stop_words=None):
 				else:
 					term_frequency[category][word] = 1
 
-	return pd.DataFrame(term_frequency)
+	return pd.DataFrame.from_dict(term_frequency)
 
-def hypergeometric(word, dframe, stop_words=None):
-	pass
+def fisher_exact(word, category, term_frequency_matrix, threshold=.05, stop_words=None):
+	"""Determines if distribution of word in subpopulation 'category' 
+	is sufficiently different than aggregate populations distribution
+
+	Parameters
+	__________ 
+
+	word : type str 
+		row of dataframe. word whose predictive value is being determined 
+
+	category : type str 
+		column of dataframe. subpopulation that presence of 'word' may or may not predict 
+
+	dframe : type pandas.DataFrame 
+		dataframe of 	
+	"""
+	num_catagory = 
+	num_word_in_category = term_frequency_matrix.loc[word, category]
+	# TODO : figure out how to get this working
+	# num_word_in_aggregate = term_frequency_matrix.loc[word].apply()
+	
 
 def predictive_words(dframe, stop_words):
-	pass
+	tf = term_frequency_matrix(dframe, stop_words)
 
 if __name__=='__main__':
-	ham = ['the boy bought the basketball', "hey what's up" ]
-	spam = ['NEW BUY NOW', 'XXX XXX XXX']
-
-	DATA = pd.DataFrame({'ham' : ham , 'spam' : spam})
-	print term_frequency_matrix(DATA)
+	data = pd.read_table('~/Desktop/smsspamcollection/SMSSpamCollection', header=None)
+	data.columns = ['label','text']
+	tf = term_frequency_matrix(data, 'label', 'text')
+	# print tf['ham']
+	fisher_exact('"HELLO"', 'ham', tf)
