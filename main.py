@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from scipy.stats import hypergeom
@@ -18,8 +19,7 @@ def term_frequency_matrix(dframe, label_column, text_column, stop_words=None):
 	_______ 
 
 	_ : type
-		term_frequency matrix as dataframe
-	"""
+		term_frequency matrix as dataframe"""
 
 	if not isinstance(dframe, pd.DataFrame):
 		raise TypeError('input must be pandas.DataFrame')
@@ -29,9 +29,10 @@ def term_frequency_matrix(dframe, label_column, text_column, stop_words=None):
 
 	term_frequency = OrderedDict()
 	for category, subpopulation in dframe.groupby(label_column):
-
+		
 		term_frequency[category] = OrderedDict()
 		for element in subpopulation[text_column]:
+			
 			if type(element) is str:
 				tokenized = element.split(' ')
 			else:
@@ -46,9 +47,11 @@ def term_frequency_matrix(dframe, label_column, text_column, stop_words=None):
 				else:
 					term_frequency[category][word] = 1
 
-	return pd.DataFrame.from_dict(term_frequency)
+	data = pd.DataFrame.from_dict(term_frequency)
+	data.fillna(0, inplace=True)
+	return data
 
-def fisher_exact(word, category, term_frequency_matrix, threshold=.05, stop_words=None):
+def fisher_exact(word, category, term_frequency_matrix, stop_words=None):
 	"""Determines if distribution of word in subpopulation 'category' 
 	is sufficiently different than aggregate populations distribution
 
@@ -64,18 +67,33 @@ def fisher_exact(word, category, term_frequency_matrix, threshold=.05, stop_word
 	dframe : type pandas.DataFrame 
 		dataframe of 	
 	"""
-	num_catagory = 
 	num_word_in_category = term_frequency_matrix.loc[word, category]
-	# TODO : figure out how to get this working
-	# num_word_in_aggregate = term_frequency_matrix.loc[word].apply()
-	
+	num_without_word_in_category = term_frequency_matrix.loc[:, category].sum() - num_word_in_category
 
-def predictive_words(dframe, stop_words):
-	tf = term_frequency_matrix(dframe, stop_words)
+	num_word_in_aggregate = term_frequency_matrix.loc[word, :].sum()
+	num_without_word_in_aggregate = term_frequency_matrix.sum() - num_word_in_aggregate
+
+	rv = hypergeom(num_word_in_aggregate + num_without_word_in_aggregate, num_word_in_category + num_without_word_in_category, num_word_in_aggregate)
+	return rv.pmf(num_word_in_category)[0]
+
+def predictive_words(dframe, label, text, threshold=.05, stop_words=None):
+	pred_ = OrderedDict()
+	tf = term_frequency_matrix(dframe, label, text, stop_words)
+	for col in tf.columns:
+		pred_[col] = OrderedDict()
+		for word in tf.index:
+			power = fisher_exact(word, col, tf)
+			if power < threshold:
+				pred_[col][word] = power
+				print word, col, pred_[col][word]
+
 
 if __name__=='__main__':
-	data = pd.read_table('~/Desktop/smsspamcollection/SMSSpamCollection', header=None)
-	data.columns = ['label','text']
-	tf = term_frequency_matrix(data, 'label', 'text')
-	# print tf['ham']
-	fisher_exact('"HELLO"', 'ham', tf)
+	data = pd.read_csv('~/Desktop/YouTube-Spam-Collection-v1/Youtube02-KatyPerry.csv')
+	data.applymap(lambda x : x.strip() if type(x) is str else x)
+	# tf = term_frequency_matrix(data, 'CLASS', 'CONTENT')
+	predictive_words(data, 'CLASS', 'CONTENT')
+
+
+
+
