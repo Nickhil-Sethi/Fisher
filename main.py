@@ -4,7 +4,9 @@ import pandas as pd
 from scipy.stats import hypergeom
 from collections import OrderedDict
 
-def term_frequency_matrix(dframe, label_column, text_column, stop_words=None):
+import time
+
+def term_frequency_matrix(dframe, label_column, text_column, stop_words=None, frequency_threshold=None):
 	"""
 	Parameters
 	__________
@@ -67,33 +69,38 @@ def fisher_exact(word, category, term_frequency_matrix, stop_words=None):
 	dframe : type pandas.DataFrame 
 		dataframe of 	
 	"""
-	num_word_in_category = term_frequency_matrix.loc[word, category]
-	num_without_word_in_category = term_frequency_matrix.loc[:, category].sum() - num_word_in_category
+	num_word_in_category = float(term_frequency_matrix.loc[word, category])
+	num_without_word_in_category = float(term_frequency_matrix.loc[:, category].sum() - num_word_in_category)
 
-	num_word_in_aggregate = term_frequency_matrix.loc[word, :].sum()
-	num_without_word_in_aggregate = term_frequency_matrix.sum() - num_word_in_aggregate
+	num_word_in_aggregate = float(term_frequency_matrix.loc[word, :].sum())
+	# TODO : generalize this
+	num_without_word_in_aggregate = float(term_frequency_matrix.loc[:,'ham'].sum() + term_frequency_matrix.loc[:,'spam'].sum() - num_word_in_aggregate)
 
 	rv = hypergeom(num_word_in_aggregate + num_without_word_in_aggregate, num_word_in_category + num_without_word_in_category, num_word_in_aggregate)
-	return rv.pmf(num_word_in_category)[0]
+	return rv.pmf(num_word_in_category)
 
-def predictive_words(dframe, label, text, threshold=.05, stop_words=None):
+def predictive_words(dframe, label, text, threshold=.1, stop_words=None):
 	pred_ = OrderedDict()
 	tf = term_frequency_matrix(dframe, label, text, stop_words)
 	for col in tf.columns:
 		pred_[col] = OrderedDict()
 		for word in tf.index:
 			power = fisher_exact(word, col, tf)
-			if power < threshold:
+			if 0. < power < threshold:
 				pred_[col][word] = power
 				print word, col, pred_[col][word]
+				time.sleep(.1)
 
 
 if __name__=='__main__':
-	data = pd.read_csv('~/Desktop/YouTube-Spam-Collection-v1/Youtube02-KatyPerry.csv')
+	data = pd.read_table('/Users/nickhilsethi/Desktop/smsspamcollection/SMSSpamCollection', header=None)
+	data.columns = ['CLASS', 'CONTENT']
+	# print data
 	data.applymap(lambda x : x.strip() if type(x) is str else x)
 	# tf = term_frequency_matrix(data, 'CLASS', 'CONTENT')
+	# print tf
+
+	# print fisher_exact('!', 'ham', tf)
 	predictive_words(data, 'CLASS', 'CONTENT')
-
-
 
 
